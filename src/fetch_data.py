@@ -1,7 +1,12 @@
 import datetime
 
 import plaid
-from config import PLAID_CLIENT_ID, PLAID_ENVIRONMENT, PLAID_SECRET
+from config import (
+    PLAID_CLIENT_ID,
+    PLAID_ENVIRONMENT,
+    PLAID_SECRET,
+    SANDBOX_ACCESS_TOKEN,
+)
 from plaid.api import plaid_api
 from plaid.exceptions import ApiException  # Correct import for exceptions
 from plaid.model.transactions_get_request import TransactionsGetRequest
@@ -78,21 +83,14 @@ def fetch_transactions(api_provider, access_token, start_date, end_date):
 
 
 if __name__ == "__main__":
-    SANDBOX_ACCESS_TOKEN = "access-sandbox-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # Replace with your sandbox access token
     start_date_str = "2023-01-01"
     end_date_str = datetime.date.today().strftime("%Y-%m-%d")
+    transactions_json = fetch_transactions(
+        "plaid", SANDBOX_ACCESS_TOKEN, start_date_str, end_date_str
+    )
+    if transactions_json:
+        import json
 
-    if SANDBOX_ACCESS_TOKEN == "access-sandbox-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx":
-        print(
-            "WARNING: Please replace 'SANDBOX_ACCESS_TOKEN' in fetch_data.py with a valid Plaid Sandbox access token."
-        )
+        print(json.dumps(transactions_json, indent=2))
     else:
-        transactions_json = fetch_transactions(
-            "plaid", SANDBOX_ACCESS_TOKEN, start_date_str, end_date_str
-        )
-        if transactions_json:
-            import json
-
-            print(json.dumps(transactions_json, indent=2))
-        else:
-            print("Failed to fetch transactions.")
+        print("Failed to fetch transactions.")
