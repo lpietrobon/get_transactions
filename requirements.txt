@@ -1,0 +1,4 @@
+plaid-python
+requests
+pandas
+python-dotenv
