@@ -1,13 +1,16 @@
 import http.server
-import json
-import os
 import socketserver
 import webbrowser  # To open Plaid Link in a browser
+from typing import cast, Optional
 
 import plaid
 from config import PLAID_CLIENT_ID, PLAID_ENVIRONMENT, PLAID_SECRET
+
 from plaid.api import plaid_api
 from plaid.exceptions import ApiException
+from plaid.model.item_public_token_exchange_request import (
+    ItemPublicTokenExchangeRequest,
+)
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 
@@ -30,8 +33,14 @@ def create_plaid_client():
 client = create_plaid_client()
 
 
+class StoringHTTPServer(socketserver.TCPServer):  # Custom server to store public_token
+    public_token: Optional[str] = None
+
+
 # --- Simple HTTP Server to Handle Plaid Link Redirect ---
 class LinkTokenCallbackHandler(http.server.SimpleHTTPRequestHandler):
+    server: socketserver.BaseServer
+
     def do_GET(self):
         if self.path.startswith("/callback") and "public_token" in self.path:
             query_components = dict(
@@ -54,19 +63,13 @@ class LinkTokenCallbackHandler(http.server.SimpleHTTPRequestHandler):
                 </html>
                 """
                 self.wfile.write(response_html.encode())
-                self.server.public_token = (
-                    public_token  # Store public_token in the server instance
-                )
+                cast(StoringHTTPServer, self.server).public_token = public_token
             else:
                 self.send_error(
                     400, "Bad Request", "Public token not found in callback URL"
                 )
         else:
             self.send_error(404)
-
-
-class StoringHTTPServer(socketserver.TCPServer):  # Custom server to store public_token
-    public_token = None  # Class-level variable to store public_token
 
 
 # --- Get Link Token and Launch Plaid Link ---
@@ -91,58 +94,76 @@ def get_link_token():
 
 def exchange_public_token_for_access_token(public_token):
     try:
-        exchange_request = plaid.ItemPublicTokenExchangeRequest(
-            public_token=public_token
-        )
+        exchange_request = ItemPublicTokenExchangeRequest(public_token=public_token)
         exchange_response = client.item_public_token_exchange(exchange_request)
         access_token = exchange_response["access_token"]
         item_id = exchange_response["item_id"]
         print(
             f"Successfully exchanged public token for access token. Item ID: {item_id}"
         )
-        return access_token
+        return access_token, item_id  # Return item_id as well
     except ApiException as e:
         print(f"Error exchanging public token: {e}")
-        return None
+        return None, None
 
 
-def store_access_token_securely(access_token):
+def store_access_token_securely(
+    access_token, item_id, account_identifier
+):  # Added account_identifier
     """
-    Placeholder for secure storage of access_token.
+    Placeholder for secure storage of access_token and item_id.
+    Also takes account_identifier to name the token.
     In a real app, use a secure method like keyring, encrypted file, or database.
-    For this example, we'll just print it (INSECURE - FOR DEMO ONLY).
     """
-    print("\n**IMPORTANT: Access Token Obtained:**")
-    print(access_token)
+    # TODO: Replace the printing with a secure storage method
     print(
-        "**You should store this token securely (e.g., in a password manager or encrypted file).**"
+        f"\n**IMPORTANT: Access Token and Item ID Obtained for '{account_identifier}':**"
+    )  # Include identifier in message
+    print(f"Account Identifier: {account_identifier}")  # Print identifier
+    print(f"Access Token: {access_token}")
+    print(f"Item ID: {item_id}")
+    print(
+        f"**You should store these securely, associated with '{account_identifier}' (e.g., in a password manager or encrypted file).**"
     )
-    # In a real application, you would use a secure storage mechanism here.
+    # In a real application, you would use a secure storage mechanism here,
+    # likely using the account_identifier as part of the storage key.
 
 
 if __name__ == "__main__":
+    account_identifier = input(
+        "Enter an identifier for this financial institution account (e.g., BankOfAmerica, CreditCard1): "
+    )
+    if not account_identifier:
+        print("Account identifier cannot be empty. Exiting.")
+        exit()
+
     link_token = get_link_token()
     if not link_token:
         print("Failed to get Link Token. Exiting.")
         exit()
 
     link_url = f"https://link.plaid.com/?token={link_token}&redirect_uri=http://localhost:8080/callback"
-    print(f"Opening Plaid Link in your browser: {link_url}")
+    print(f"Opening Plaid Link for '{account_identifier}' in your browser: {link_url}")
     webbrowser.open(link_url)
 
     # --- Start a simple HTTP server to listen for the Plaid Link callback ---
     PORT = 8080
     with StoringHTTPServer(("", PORT), LinkTokenCallbackHandler) as httpd:
-        print(f"Serving at port {PORT}. Waiting for Plaid Link callback...")
+        print(
+            f"Serving at port {PORT}. Waiting for Plaid Link callback for '{account_identifier}'..."
+        )  # Include identifier in message
         httpd.timeout = 120  # Timeout after 2 minutes if no callback received
         while httpd.public_token is None:  # Keep serving until public_token is received
             httpd.handle_request()  # Handle one request at a time (blocking)
 
         public_token = httpd.public_token
-        print("\nPublic Token received from Plaid Link callback:", public_token)
+        print(
+            f"\nPublic Token received from Plaid Link callback for '{account_identifier}':",
+            public_token,
+        )
 
-        access_token = exchange_public_token_for_access_token(public_token)
+        access_token, item_id = exchange_public_token_for_access_token(public_token)
         if access_token:
-            store_access_token_securely(access_token)
+            store_access_token_securely(access_token, item_id, account_identifier)
         else:
             print("Failed to exchange public token for access token.")
