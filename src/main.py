@@ -1,12 +1,13 @@
 import datetime
 import json
-
 import os
 
 from config import API_PROVIDER, BANK_IDENTIFIERS, OUTPUT_CSV_FILE
-from export_csv import export_dataframe_to_csv
-from fetch_data import fetch_transactions
-from process_data import process_transaction_data
+
+from src.api.app import create_app
+from src.export_csv import export_dataframe_to_csv
+from src.fetch_data import fetch_transactions
+from src.process_data import process_transaction_data
 
 # from dotenv import load_dotenv  <-  No longer directly loading .env for access token here
 
@@ -71,4 +72,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    #  with the flask app
+    app = create_app()
+    app.run(debug=True)

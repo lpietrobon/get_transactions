@@ -16,3 +16,6 @@ SANDBOX_ACCESS_TOKEN = os.getenv("SANDBOX_ACCESS_TOKEN")
 
 
 BANK_IDENTIFIERS = ["BANK_A", "BANK_B"]  # Define your bank identifiers here
+
+
+DUMMY_USER_ID = "my_dummy_uid"

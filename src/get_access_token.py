@@ -4,15 +4,17 @@ import webbrowser  # To open Plaid Link in a browser
 from typing import cast, Optional
 
 import plaid
-from config import PLAID_CLIENT_ID, PLAID_ENVIRONMENT, PLAID_SECRET
+from config import DUMMY_USER_ID, PLAID_CLIENT_ID, PLAID_ENVIRONMENT, PLAID_SECRET
 
 from plaid.api import plaid_api
 from plaid.exceptions import ApiException
+from plaid.model.country_code import CountryCode
 from plaid.model.item_public_token_exchange_request import (
     ItemPublicTokenExchangeRequest,
 )
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
+from plaid.model.products import Products
 
 
 def create_plaid_client():
@@ -75,15 +77,15 @@ class LinkTokenCallbackHandler(http.server.SimpleHTTPRequestHandler):
 # --- Get Link Token and Launch Plaid Link ---
 def get_link_token():
     try:
-        user = LinkTokenCreateRequestUser()
+        user = LinkTokenCreateRequestUser(client_user_id=DUMMY_USER_ID)
         request = LinkTokenCreateRequest(
             client_name="My Local Finance App",
             user=user,
-            products=["transactions"],  # Request transaction data access
-            country_codes=["US"],  # Or your country codes
+            products=[Products("transactions")],  # Request transaction data access
+            country_codes=[CountryCode("US")],  # Or your country codes
             language="en",
             redirect_uri="http://localhost:8080/callback",  # Important: Must match Plaid Dashboard settings (if used)
-            environment=PLAID_ENVIRONMENT,
+            # environment=PLAID_ENVIRONMENT,
         )
         link_token_response = client.link_token_create(request)
         return link_token_response["link_token"]
