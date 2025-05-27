@@ -1,4 +1,5 @@
 import datetime
+from functools import lru_cache
 
 import plaid
 from config import (
@@ -8,11 +9,12 @@ from config import (
     SANDBOX_ACCESS_TOKEN,
 )
 from plaid.api import plaid_api
-from plaid.exceptions import ApiException  # Correct import for exceptions
+from plaid.exceptions import ApiException
 from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.transactions_get_request_options import TransactionsGetRequestOptions
 
 
+@lru_cache(maxsize=1)  # so we don't initialize the client multiple times
 def create_plaid_client():
     """Creates a Plaid API client using the configuration."""
     configuration = plaid.Configuration(

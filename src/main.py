@@ -9,8 +9,6 @@ from src.export_csv import export_dataframe_to_csv
 from src.fetch_data import fetch_transactions
 from src.process_data import process_transaction_data
 
-# from dotenv import load_dotenv  <-  No longer directly loading .env for access token here
-
 
 def load_access_tokens_securely():
     """Loads a list of access tokens from environment variables."""
