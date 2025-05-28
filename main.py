@@ -146,61 +146,57 @@ def oauth_response():
     return "✅ Account linked. You can close this tab."
 
 @app.route("/")
-def link_page():
-    link_req = LinkTokenCreateRequest(
-        products=[Products("transactions")],
-        client_name="Personal Finance Manager",
-        country_codes=[CountryCode("US")],
-        language="en",
-        user={"client_user_id": "user-1"},
-    )
-    link_token = client.link_token_create(link_req).link_token
+def index():
+    # create a new link_token for *each* visit
+    link_token = client.link_token_create(
+        LinkTokenCreateRequest(
+            user={"client_user_id": "user-1"},
+            client_name="Personal Finance Manager",
+            products=[Products("transactions")],
+            country_codes=[CountryCode("US")],
+            language="en",
+        )
+    ).link_token
 
+    # “minimal viable” HTML that embeds the JS SDK
     return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Plaid Link</title>
-      <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-    </head>
-    <body>
-      <h1>Link your bank account</h1>
-      <button id="link-button">Open Plaid Link</button>
-      <script>
-        var handler = Plaid.create({{
-          token: '{link_token}',
-          onSuccess: function(public_token, metadata) {{
-            window.location.href = "/oauth-response?public_token=" + public_token;
-          }},
-        }});
-        document.getElementById('link-button').onclick = function() {{
-          handler.open();
-        }};
-      </script>
-    </body>
-    </html>
-    """
+<!doctype html>
+<html>
+  <head>
+    <title>Link your bank</title>
+    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  </head>
+  <body style="font-family:sans-serif">
+    <button id='link-btn'>Connect a bank account</button>
+    <script>
+      const handler = Plaid.create({{
+        token: '{link_token}',
+        onSuccess: (public_token, meta) =>
+          window.location = '/oauth-response?public_token=' + public_token
+      }});
+      document.getElementById('link-btn').onclick = () => handler.open();
+    </script>
+  </body>
+</html>"""
+
 
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  Commands
 # ────────────────────────────────────────────────────────────────────────────────
 def add_account():
-    import threading
-
-    server = threading.Thread(target=lambda: app.run(port=5000, debug=True))
+    from threading import Thread
+    # 💡 use a port that is almost never taken, and bind to all interfaces
+    server = Thread(
+        target=lambda: app.run(host="0.0.0.0", port=8000, threaded=True, debug=False)
+    )
     server.daemon = True
     server.start()
 
-    webbrowser.open("http://localhost:5000")  # ← open local link page
-    print("Browser opened. Complete the Plaid flow, then return here…")
-
-    try:
-        server.join()
-    except KeyboardInterrupt:
-        print("\nInterrupted. Server shutting down.")
-    sys.exit(0)
-
+    # open the new endpoint
+    webbrowser.open("http://127.0.0.1:8000")
+    print("Complete the Plaid flow, then return here…")
+    server.join()
 
 
 def aggregate_data() -> None:
