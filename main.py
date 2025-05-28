@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
+
 
 import os
 import sys
@@ -20,7 +21,7 @@ from typing import List
 import pandas as pd
 
 import plaid
-from crypto_store import (  # ← our tiny encrypted key-value store
+from crypto_store import (
     load_tokens,
     save_tokens,
 )
@@ -69,6 +70,11 @@ DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__)  # Flask is only used during add-account
+
+
+print("ENV:", os.getenv("PLAID_ENV"))
+print("CLIENT_ID OK?", os.getenv("PLAID_CLIENT_ID") is not None)
+print("SECRET OK?", os.getenv("PLAID_SECRET") is not None)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
